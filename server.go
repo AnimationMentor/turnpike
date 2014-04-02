@@ -27,6 +27,19 @@ const (
 	clientMaxFailures = 3
 )
 
+type Notification interface {
+}
+
+type SubscriptionNotification struct {
+    SessionId   string
+    TopicURI    string
+}
+
+type UnsubscriptionNotification struct {
+    SessionId   string
+    TopicURI    string
+}
+
 // Server represents a WAMP server that handles RPC and pub/sub.
 type Server struct {
 	// Client ID -> send channel
@@ -43,7 +56,7 @@ type Server struct {
 	sessionOpenCallback func(string)
 	websocket.Server
 	// Notifications
-	Notifications chan string
+	Notifications chan Notification
 }
 
 // RPCHandler is an interface that handlers to RPC calls should implement.
@@ -86,7 +99,7 @@ func NewServer() *Server {
 		pubHandlers:   make(map[string]PubHandler),
 		subscriptions: make(map[string]listenerMap),
 		subLock:       new(sync.Mutex),
-		Notifications: make(chan string),
+		Notifications: make(chan Notification),
 	}
 	s.Server = websocket.Server{
 		Handshake: checkWAMPHandshake,
@@ -153,9 +166,9 @@ func (t *Server) SendEvent(topic string, event interface{}) {
 func (t *Server) HandleWebsocket(conn *websocket.Conn) {
 	defer conn.Close()
 
-	if debug {
+	//if debug {
 		log.Print("turnpike: received websocket connection")
-	}
+	//}
 
 	tid, err := uuid.NewV4()
 	if err != nil {
@@ -396,7 +409,7 @@ func (t *Server) handleSubscribe(id string, msg subscribeMsg) {
 	if debug {
 		log.Printf("turnpike: client %s subscribed to topic: %s", id, uri)
 	}
-	t.Notifications <- id
+	t.Notifications <- SubscriptionNotification{id, msg.TopicURI}
 }
 
 func (t *Server) handleUnsubscribe(id string, msg unsubscribeMsg) {
@@ -412,6 +425,7 @@ func (t *Server) handleUnsubscribe(id string, msg unsubscribeMsg) {
 	if debug {
 		log.Printf("turnpike: client %s unsubscribed from topic: %s", id, uri)
 	}
+	t.Notifications <- UnsubscriptionNotification{id, msg.TopicURI}
 }
 
 func (t *Server) handlePublish(id string, msg publishMsg) {
@@ -522,6 +536,7 @@ func (lm listenerMap) remove(id string) {
 }
 
 func checkWAMPHandshake(config *websocket.Config, req *http.Request) error {
+    log.Println("Check WAMP handshake")
 	for _, protocol := range config.Protocol {
 		if protocol == "wamp" {
 			config.Protocol = []string{protocol}
