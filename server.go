@@ -166,9 +166,9 @@ func (t *Server) SendEvent(topic string, event interface{}) {
 func (t *Server) HandleWebsocket(conn *websocket.Conn) {
 	defer conn.Close()
 
-	//if debug {
+	if debug {
 		log.Print("turnpike: received websocket connection")
-	//}
+	}
 
 	tid, err := uuid.NewV4()
 	if err != nil {
