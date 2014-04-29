@@ -55,8 +55,8 @@ type Server struct {
 	subLock             *sync.Mutex
 	sessionOpenCallback func(string)
 	websocket.Server
-	// Notifications
-	Notifications chan Notification
+	// SubscriptionNotifications
+	SubscriptionNotifications chan Notification
 }
 
 // RPCHandler is an interface that handlers to RPC calls should implement.
@@ -99,7 +99,7 @@ func NewServer() *Server {
 		pubHandlers:   make(map[string]PubHandler),
 		subscriptions: make(map[string]listenerMap),
 		subLock:       new(sync.Mutex),
-		Notifications: make(chan Notification),
+		SubscriptionNotifications: make(chan Notification),
 	}
 	s.Server = websocket.Server{
 		Handshake: checkWAMPHandshake,
@@ -409,7 +409,7 @@ func (t *Server) handleSubscribe(id string, msg subscribeMsg) {
 	if debug {
 		log.Printf("turnpike: client %s subscribed to topic: %s", id, uri)
 	}
-	t.Notifications <- SubscriptionNotification{id, msg.TopicURI}
+	t.SubscriptionNotifications <- SubscriptionNotification{id, msg.TopicURI}
 }
 
 func (t *Server) handleUnsubscribe(id string, msg unsubscribeMsg) {
@@ -425,7 +425,7 @@ func (t *Server) handleUnsubscribe(id string, msg unsubscribeMsg) {
 	if debug {
 		log.Printf("turnpike: client %s unsubscribed from topic: %s", id, uri)
 	}
-	t.Notifications <- UnsubscriptionNotification{id, msg.TopicURI}
+	t.SubscriptionNotifications <- UnsubscriptionNotification{id, msg.TopicURI}
 }
 
 func (t *Server) handlePublish(id string, msg publishMsg) {
