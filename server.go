@@ -99,7 +99,7 @@ func NewServer() *Server {
         pubHandlers:               make(map[string]PubHandler),
         subscriptions:             make(map[string]listenerMap),
         subLock:                   new(sync.Mutex),
-        SubscriptionNotifications: make(chan Notification),
+        SubscriptionNotifications: make(chan Notification, 100),
     }
     s.Server = websocket.Server{
         Handshake: checkWAMPHandshake,
