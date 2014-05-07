@@ -6,7 +6,6 @@ package turnpike
 
 import (
 	"net/http"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -24,9 +23,6 @@ func TestServer_SubNoHandler(t *testing.T) {
 			t.Fatal("ListenAndServe: " + err.Error())
 		}
 	}()
-
-	// Let the server goroutine start.
-	runtime.Gosched()
 
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8101/ws_s1", "http://localhost/")
@@ -69,9 +65,6 @@ func TestServer_RegisterSubHandler(t *testing.T) {
 		}
 	}()
 
-	// Let the server goroutine start.
-	runtime.Gosched()
-
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8102/ws_s2", "http://localhost/")
 	if err != nil {
@@ -104,9 +97,6 @@ func TestServer_SubHandlerAccept(t *testing.T) {
 			t.Fatal("ListenAndServe: " + err.Error())
 		}
 	}()
-
-	// Let the server goroutine start.
-	runtime.Gosched()
 
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8103/ws_s3", "http://localhost/")
@@ -146,9 +136,6 @@ func TestServer_SubHandlerDeny(t *testing.T) {
 		}
 	}()
 
-	// Let the server goroutine start.
-	runtime.Gosched()
-
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8104/ws_s4", "http://localhost/")
 	if err != nil {
@@ -181,9 +168,6 @@ func TestServer_RegisterPubHandler(t *testing.T) {
 			t.Fatal("ListenAndServe: " + err.Error())
 		}
 	}()
-
-	// Let the server goroutine start.
-	runtime.Gosched()
 
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8105/ws_s5", "http://localhost/")
@@ -218,9 +202,6 @@ func TestServer_PubHandlerChange(t *testing.T) {
 			t.Fatal("ListenAndServe: " + err.Error())
 		}
 	}()
-
-	// Let the server goroutine start.
-	runtime.Gosched()
 
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8106/ws_s6", "http://localhost/")

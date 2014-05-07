@@ -7,7 +7,6 @@ package turnpike
 import (
 	"errors"
 	"net/http"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -28,9 +27,6 @@ func TestClient_CallResult(t *testing.T) {
 			t.Fatal("ListenAndServe: " + err.Error())
 		}
 	}()
-
-	// Let the server goroutine start.
-	runtime.Gosched()
 
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8001/ws1", "http://localhost/")
@@ -62,8 +58,6 @@ func TestClient_CallRestultGenericError(t *testing.T) {
 		}
 	}()
 
-	runtime.Gosched()
-
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8002/ws2", "http://localhost/")
 	if err != nil {
@@ -94,8 +88,6 @@ func TestClient_CallRestultCustomError(t *testing.T) {
 		}
 	}()
 
-	runtime.Gosched()
-
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8003/ws3", "http://localhost/")
 	if err != nil {
@@ -119,14 +111,14 @@ func TestClient_Event(t *testing.T) {
 	// Currently there is no way of closing the listener. A cusom server and
 	// handler will work but requires more work. TBD.
 	go func() {
+		// Exercise the Client's retry functionality
+		time.Sleep(5 * time.Second)
+
 		err := http.ListenAndServe(":8004", nil)
 		if err != nil {
 			t.Fatal("ListenAndServe: " + err.Error())
 		}
 	}()
-
-	// Let the server goroutine start.
-	runtime.Gosched()
 
 	c := NewClient()
 	err := c.Connect("ws://127.0.0.1:8004/ws4", "http://localhost/")

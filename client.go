@@ -11,10 +11,12 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"time"
 )
 
 const (
-	wampProtocolId = "wamp"
+	wampProtocolId       = "wamp"
+	maxConnectionRetries = 10
 )
 
 var clientBacklog = 10
@@ -336,7 +338,13 @@ func (c *Client) Connect(server, origin string) error {
 		log.Print("turnpike: connect")
 	}
 	var err error
-	if c.ws, err = websocket.Dial(server, wampProtocolId, origin); err != nil {
+	for i := 1; i <= maxConnectionRetries; i++ {
+		if c.ws, err = websocket.Dial(server, wampProtocolId, origin); err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if err != nil {
 		return fmt.Errorf("Error connecting to websocket server: %s", err)
 	}
 
