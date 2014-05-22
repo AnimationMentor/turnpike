@@ -112,7 +112,7 @@ func TestClient_Event(t *testing.T) {
 	// handler will work but requires more work. TBD.
 	go func() {
 		// Exercise the Client's retry functionality
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 
 		err := http.ListenAndServe(":8004", nil)
 		if err != nil {
