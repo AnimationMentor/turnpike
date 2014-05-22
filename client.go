@@ -16,7 +16,7 @@ import (
 
 const (
 	wampProtocolId       = "wamp"
-	maxConnectionRetries = 10
+	maxConnectionRetries = 50
 )
 
 var clientBacklog = 10
