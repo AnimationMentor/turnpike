@@ -40,6 +40,14 @@ type UnsubscriptionNotification struct {
     TopicURI  string
 }
 
+type ConnectionNotification struct {
+    ConnectionId string
+}
+
+type DisconnectionNotification struct {
+    ConnectionId string
+}
+
 // Server represents a WAMP server that handles RPC and pub/sub.
 type Server struct {
     // Client ID -> send channel
@@ -57,6 +65,7 @@ type Server struct {
     websocket.Server
     // SubscriptionNotifications
     SubscriptionNotifications chan Notification
+    ConnectionNotifications chan Notification
 }
 
 // RPCHandler is an interface that handlers to RPC calls should implement.
@@ -100,6 +109,7 @@ func NewServer() *Server {
         subscriptions:             make(map[string]listenerMap),
         subLock:                   new(sync.Mutex),
         SubscriptionNotifications: make(chan Notification, 100),
+        ConnectionNotifications:   make(chan Notification, 100),
     }
     s.Server = websocket.Server{
         Handshake: checkWAMPHandshake,
@@ -181,6 +191,7 @@ func (t *Server) HandleWebsocket(conn *websocket.Conn) {
     if debug {
         log.Printf("turnpike: client connected: %s", id)
     }
+    t.ConnectionNotifications <- ConnectionNotification{id}
 
     arr, err := createWelcome(id, turnpikeServerIdent)
     if err != nil {
@@ -233,6 +244,7 @@ func (t *Server) HandleWebsocket(conn *websocket.Conn) {
         if debug {
             log.Printf("Client %s disconnected", id)
         }
+        t.ConnectionNotifications <- DisconnectionNotification{id}
         conn.Close()
     }()
 
