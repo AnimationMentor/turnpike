@@ -285,7 +285,7 @@ func (t *Server) HandleWebsocket(conn *websocket.Conn) {
                 }
                 continue
             }
-            t.handleCall(id, msg)
+            go t.handleCall(id, msg)
         case msgSubscribe:
             var msg subscribeMsg
             err := json.Unmarshal(data, &msg)
