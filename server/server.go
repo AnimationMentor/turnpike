@@ -5,7 +5,7 @@
 package main
 
 import (
-	"code.google.com/p/go.net/websocket"
+	"github.com/golang/net/websocket"
 	"fmt"
 	"log"
 	"net/http"
