@@ -51,7 +51,8 @@ type DisconnectionNotification struct {
 // Server represents a WAMP server that handles RPC and pub/sub.
 type Server struct {
 	// Client ID -> send channel
-	clients map[string]chan string
+	clients    map[string]chan string
+	clientLock *sync.Mutex
 	// Client ID -> prefix mapping
 	prefixes map[string]prefixMap
 	// Proc URI -> handler
@@ -102,6 +103,7 @@ type PubHandler func(topicURI string, event interface{}) (string, interface{})
 func NewServer() *Server {
 	s := &Server{
 		clients:                   make(map[string]chan string),
+		clientLock:                new(sync.Mutex),
 		prefixes:                  make(map[string]prefixMap),
 		rpcHandlers:               make(map[string]RPCHandler),
 		subHandlers:               make(map[string]SubHandler),
@@ -212,7 +214,9 @@ func (t *Server) HandleWebsocket(conn *websocket.Conn) {
 	}
 
 	c := make(chan string, serverBacklog)
+	t.clientLock.Lock()
 	t.clients[id] = c
+	t.clientLock.Unlock()
 
 	if t.sessionOpenCallback != nil {
 		t.sessionOpenCallback(id)
@@ -327,6 +331,8 @@ func (t *Server) HandleWebsocket(conn *websocket.Conn) {
 		}
 	}
 
+	t.clientLock.Lock()
+	defer t.clientLock.Unlock()
 	delete(t.clients, id)
 	close(c)
 }
@@ -393,6 +399,8 @@ func (t *Server) handleCall(id string, msg callMsg) {
 		}
 		return
 	}
+	t.clientLock.Lock()
+	defer t.clientLock.Unlock()
 	if client, ok := t.clients[id]; ok {
 		client <- out
 	}
@@ -509,6 +517,8 @@ func (t *Server) handlePublish(id string, msg publishMsg) {
 		}
 	}
 
+	t.clientLock.Lock()
+	defer t.clientLock.Unlock()
 	for _, tid := range sendTo {
 		// we're not locking anything, so we need
 		// to make sure the client didn't disconnecct in the
