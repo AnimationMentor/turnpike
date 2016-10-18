@@ -7,6 +7,7 @@ package turnpike
 import (
 	"encoding/json"
 	"net/url"
+	redis "github.com/AnimationMentor/go-local-redis"
 	"regexp"
 	"strconv"
 )
@@ -374,9 +375,10 @@ func (msg *publishMsg) UnmarshalJSON(jsonData []byte) error {
 // event can be nil, a simple json type, or a complex json type
 func createPublish(topicURI string, event interface{}, opts ...interface{}) (string, error) {
 	var data []interface{}
-	data = append(data, msgPublish, topicURI, event)
+    data = append(data, msgPublish, topicURI, event)
 	data = append(data, opts...)
-	return createWAMPMessagePubSub(data...)
+	msg, err := createWAMPMessagePubSub(data...)
+    return msg, err
 }
 
 // EVENT
@@ -421,7 +423,18 @@ func createWAMPMessagePubSub(args ...interface{}) (string, error) {
 // createWAMPMessage returns a JSON encoded list from all the arguments passed to it
 func createWAMPMessage(args ...interface{}) (string, error) {
 	var data []interface{}
+    var b []byte
+    var err error 
 	data = append(data, args...)
-	b, err := json.Marshal(data)
+    if len(args) > 2 {
+        switch args[2].(type) {
+            case redis.Hash:
+                b, err = redis.HToJSON(data)
+            default:
+                b, err = json.Marshal(data)
+        }
+    } else {
+        b, err = json.Marshal(data)
+    }
 	return string(b), err
 }
