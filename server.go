@@ -5,16 +5,17 @@
 package turnpike
 
 import (
-	"golang.org/x/net/websocket"
 	"encoding/json"
 	"fmt"
-	"github.com/nu7hatch/gouuid"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/nu7hatch/gouuid"
+	"golang.org/x/net/websocket"
 )
 
 var (
@@ -66,7 +67,7 @@ type Server struct {
 	websocket.Server
 	// SubscriptionNotifications
 	SubscriptionNotifications chan Notification
-	ConnectionNotifications chan Notification
+	ConnectionNotifications   chan Notification
 }
 
 // RPCHandler is an interface that handlers to RPC calls should implement.
@@ -177,7 +178,7 @@ func (t *Server) SendEvent(topic string, event interface{}) {
 // ConnectedClients returns a slice of the ids of all connected clients
 func (t *Server) ConnectedClients() []string {
 	clientIDs := []string{}
-	for id, _ := range t.clients {
+	for id := range t.clients {
 		clientIDs = append(clientIDs, id)
 	}
 	return clientIDs
@@ -341,8 +342,9 @@ func (t *Server) HandleWebsocket(conn *websocket.Conn) {
 	}
 
 	t.clientLock.Lock()
-	defer t.clientLock.Unlock()
 	delete(t.clients, id)
+	t.clientLock.Unlock()
+
 	close(c)
 }
 
@@ -409,8 +411,10 @@ func (t *Server) handleCall(id string, msg callMsg) {
 		return
 	}
 	t.clientLock.Lock()
-	defer t.clientLock.Unlock()
-	if client, ok := t.clients[id]; ok {
+	client, ok := t.clients[id]
+	t.clientLock.Unlock()
+
+	if ok {
 		client <- out
 	}
 }
@@ -430,11 +434,12 @@ func (t *Server) handleSubscribe(id string, msg subscribeMsg) {
 	}
 
 	t.subLock.Lock()
-	defer t.subLock.Unlock()
 	if _, ok := t.subscriptions[uri]; !ok {
 		t.subscriptions[uri] = make(map[string]bool)
 	}
 	t.subscriptions[uri].add(id)
+	t.subLock.Unlock()
+
 	if debug {
 		log.Printf("turnpike: client %s subscribed to topic: %s", id, uri)
 	}
@@ -470,16 +475,22 @@ func (t *Server) handlePublish(id string, msg publishMsg) {
 	}
 
 	/*
-	if len(t.subscriptions[uri]) > 0 {
-		log.Print("Handling publish with subscriptions ", t.subscriptions)
-		log.Print("for uri ", uri)
-	}
+		if len(t.subscriptions[uri]) > 0 {
+			log.Print("Handling publish with subscriptions ", t.subscriptions)
+			log.Print("for uri ", uri)
+		}
 	*/
 
-	lm, ok := t.subscriptions[uri]
+	t.subLock.Lock()
+	lmSrc, ok := t.subscriptions[uri]
 	if !ok {
+		t.subLock.Unlock()
 		return
 	}
+	// Copy the map to a list, so we can access
+	// it without a lock
+	lm := lmSrc.items()
+	t.subLock.Unlock()
 
 	out, err := createEvent(uri, event)
 	if err != nil {
@@ -492,7 +503,7 @@ func (t *Server) handlePublish(id string, msg publishMsg) {
 	var sendTo []string
 	if len(msg.ExcludeList) > 0 || len(msg.EligibleList) > 0 {
 		// this is super ugly, but I couldn't think of a better way...
-		for tid := range lm {
+		for _, tid := range lm {
 			include := true
 			for _, _tid := range msg.ExcludeList {
 				if tid == _tid {
@@ -518,7 +529,7 @@ func (t *Server) handlePublish(id string, msg publishMsg) {
 			}
 		}
 	} else {
-		for tid := range lm {
+		for _, tid := range lm {
 			if tid == id && msg.ExcludeMe {
 				continue
 			}
@@ -533,6 +544,7 @@ func (t *Server) handlePublish(id string, msg publishMsg) {
 		// to make sure the client didn't disconnecct in the
 		// last few nanoseconds...
 		if client, ok := t.clients[tid]; ok {
+			// TODO: This is strange and racey and unclear
 			if len(client) == cap(client) {
 				<-client
 			}
@@ -571,6 +583,14 @@ func (lm listenerMap) contains(id string) bool {
 }
 func (lm listenerMap) remove(id string) {
 	delete(lm, id)
+}
+
+func (lm listenerMap) items() []string {
+	items := make([]string, 0, len(lm))
+	for item := range lm {
+		items = append(items, item)
+	}
+	return items
 }
 
 func checkWAMPHandshake(config *websocket.Config, req *http.Request) error {

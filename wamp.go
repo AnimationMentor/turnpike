@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+
+	redis "github.com/AnimationMentor/go-local-redis"
 )
 
 const (
@@ -376,7 +378,8 @@ func createPublish(topicURI string, event interface{}, opts ...interface{}) (str
 	var data []interface{}
 	data = append(data, msgPublish, topicURI, event)
 	data = append(data, opts...)
-	return createWAMPMessagePubSub(data...)
+	msg, err := createWAMPMessagePubSub(data...)
+	return msg, err
 }
 
 // EVENT
@@ -420,8 +423,22 @@ func createWAMPMessagePubSub(args ...interface{}) (string, error) {
 
 // createWAMPMessage returns a JSON encoded list from all the arguments passed to it
 func createWAMPMessage(args ...interface{}) (string, error) {
-	var data []interface{}
-	data = append(data, args...)
-	b, err := json.Marshal(data)
+	var (
+		data []interface{}
+		b    []byte
+		err  error
+	)
+
+	data = make([]interface{}, 0, len(args))
+	for _, arg := range args {
+		switch t := arg.(type) {
+		case redis.Hash:
+			data = append(data, t.ToMap())
+		default:
+			data = append(data, arg)
+		}
+	}
+
+	b, err = json.Marshal(data)
 	return string(b), err
 }
